@@ -10,6 +10,8 @@
 import xlrd
 import xlwt
 import os
+import numpy as np
+from scipy.optimize import fsolve
 
 
 class account:
@@ -61,6 +63,10 @@ class SAM:
     
     def __init__(self,ac = []):
         self.accounts = ac
+        self.accounts_CE_in = []
+        self.total_CE_in = []
+        self.accounts_CE_out = []
+        self.total_CE_out = []
         
     def addAccount(self,ac):
         name_list = [x.name for x in self.accounts]
@@ -84,6 +90,49 @@ class SAM:
                 control = False
                 break
         return control
+    def __accounts_CE_in(self):
+        for i in range(len(self.accounts)):
+            self.accounts_CE_in.append([])
+            self.total_CE_in.append(sum([self.accounts[i].ac_in[x] for x in self.accounts[i].ac_in]))
+            for j in range(len(self.accounts)):
+                if self.accounts[j].name in self.accounts[i].ac_in:
+                    self.accounts_CE_in[i].append(self.accounts[i].ac_in[self.accounts[j].name]/self.total_CE_in[i])
+                else:
+                    self.accounts_CE_in[i].append(0.0)
+        
+    def __func_CE_in(self,x):
+        res = []
+        for i in range(len(self.accounts_CE_in)):
+            func1 = -1
+            func2 = -self.total_CE_in[i]
+            for j in range(len(self.accounts_CE_in)):
+                func1 += self.accounts_CE_in[i][j]/(self.total_CE_in[i]*x[len(self.accounts_CE_in)+j]+x[i])
+                func2 += self.total_CE_in[j]*self.accounts_CE_in[j][i]/(self.total_CE_in[j]*x[len(self.accounts_CE_in)+i]+x[j])
+            res.append(func1)
+            res.append(func2)
+        return res
+            
+        
+    def setEqual_CE(self,control = 1):
+        """
+control = 1, using the method based on ac_in
+control = 0, using the method based on ac_out
+"""
+        x = [1]*len(self.accounts)+[0]*len(self.accounts)
+        if control == 1:
+            self.__accounts_CE_in()
+            res = fsolve(self.__func_CE_in,x)
+            
+            print res,self.__func_CE_in(res)
+            for i in range(len(self.accounts)):
+                for j in range(len(self.accounts)):
+                    if self.accounts[j].name in self.accounts[i].ac_in:
+                        error = self.accounts[i].ac_in[self.accounts[j].name]*(1-1/(res[i]+self.total_CE_in[i]*res[len(self.accounts_CE_in)+j]))
+                        self.accounts[i].get(self.accounts[j],error)
+            
+                    
+            
+            
 
     def setEqual(self,Ierror=0.1):
 ### waiting for coding
@@ -214,7 +263,15 @@ if __name__ == '__main__':
     otherC_goods = 73935495.96
     sam.accounts[9].get(sam.accounts[0],otherC_goods)
 
-       
+    
+    
+    
+    
+    
+    
+    
+    
+        
 
 ### paying and getting relationship build between accounts
 
@@ -227,7 +284,7 @@ if __name__ == '__main__':
 ##    sam.accounts[2].pay(sam.accounts[1],10)
     print sam.isAll()
     print sam.isEqual()
-    sam.setEqual()
+    sam.setEqual_CE()
     sam.accounts[5].get(sam.accounts[7],1)
     sam.accounts[7].get(sam.accounts[8],1)
     sam.accounts[8].get(sam.accounts[9],1)
