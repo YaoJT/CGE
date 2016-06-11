@@ -237,5 +237,3 @@ if __name__ == '__main__':
 ##    sam.setEqual()
 ##    sam.toXls('equal.xls')
 ##    os.system('equal.xls')
-##    
-    
